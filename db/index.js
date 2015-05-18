@@ -127,28 +127,69 @@ var db = {
                     query = merge.recursive(true, query, q);
                     break;
             }
+            
+            function executeSearch(query) {
+                // Populate options
+                var opts = [{
+                    path: 'subject'
+                }, {
+                    path: 'student',
+                    select: 'firstname lastname middlename'
+                }, {
+                    path: 'curator',
+                    select: 'firstname lastname middlename'
+                }];
+                // Query
+                var Exam = require('./models/exam');
+                Exam.find(query).count(function(err, count) {
+                    Exam.find(query).sort('beginDate').skip(rows * page).limit(rows).populate(opts).exec(function(err, data) {
+                        console.log(data);
+                        callback(err, data, count);
+                    });
+                });
+            }
+            
             // Full text search
             if(text) {
-                // client side
-                console.log(text);
-            }
-            // Populate options
-            var opts = [{
-                path: 'subject'
-            }, {
-                path: 'student',
-                select: 'firstname lastname middlename'
-            }, {
-                path: 'curator',
-                select: 'firstname lastname middlename'
-            }];
-            // Query
-            var Exam = require('./models/exam');
-            Exam.find(query).count(function(err, count) {
-                Exam.find(query).sort('beginDate').skip(rows * page).limit(rows).populate(opts).exec(function(err, data) {
-                    callback(err, data, count);
+                var Subject = require('./models/subject');
+                //console.log('Searching subject');
+                Subject.find({title: {$regex: '.*'+text+'.*', $options: 'i'}}, {_id: 1}).exec(function(err, data){
+                    var subjectIds = new Array();
+                    for (var i = 0; i < data.length; i++) {
+                        var objId = mongoose.Types.ObjectId(data[i]._id);
+                        subjectIds.push(objId);
+                    }
+                    //console.log(subjectIds);
+                    var User = require('./models/user');
+                    User.find(
+                        {$or: [
+                            {firstname: {$regex: '.*'+text+'.*', $options: 'i'}},
+                            {lastname: {$regex: '.*'+text+'.*', $options: 'i'}},
+                            {middlename: {$regex: '.*'+text+'.*', $options: 'i'}}
+                        ]}, 
+                        {_id: 1})
+                    .exec(function(err, data) {
+                        var userIds = new Array();
+                        for (var i = 0; i < data.length; i++) {
+                        var objId = mongoose.Types.ObjectId(data[i]._id);
+                            userIds.push(objId);
+                        }
+                        //console.log(userIds);
+                        var q = {
+                            $or: [
+                                {subject: {$in: subjectIds}},
+                                {student: {$in: userIds}},
+                                {curator: {$in: userIds}}
+                        ]};
+                        query = merge.recursive(true, query, q);
+                        //console.log(query);
+                        executeSearch(query);
+                    });
                 });
-            });
+            }
+            else {
+                executeSearch(query);
+            }
         },
         info: function(args, callback) {
             var Exam = require('./models/exam');
