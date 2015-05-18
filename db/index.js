@@ -159,7 +159,7 @@ var db = {
                         var objId = mongoose.Types.ObjectId(data[i]._id);
                         subjectIds.push(objId);
                     }
-                    //console.log(subjectIds);
+                    console.log(subjectIds);
                     var User = require('./models/user');
                     User.find(
                         {$or: [
@@ -174,12 +174,12 @@ var db = {
                         var objId = mongoose.Types.ObjectId(data[i]._id);
                             userIds.push(objId);
                         }
-                        //console.log(userIds);
+                        console.log(userIds);
                         var q = {
                             $or: [
                                 {subject: {$in: subjectIds}},
                                 {student: {$in: userIds}},
-                                {curator: {$in: userIds}}
+                                {'curator.0': {$in: userIds}}
                         ]};
                         query = merge.recursive(true, query, q);
                         //console.log(query);
